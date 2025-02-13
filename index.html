@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no" />
+    <title>Pacman</title>
+
+<style>
+
+    canvas{
+        
+        width: 100%;
+        height: 100%;
+    }
+    
+</style>
+    
+    
+<script src="https://zimjs.org/cdn/1.4.1/createjs.js"></script>
+<script src="https://zimjs.org/cdn/017/zim_min.js"></script>
+
+    
+    
+<script>
+
+
+
+
+// SCALING OPTIONS
+// scaling can have values as follows with full being the default
+// "fit"    sets canvas and stage to dimensions and scales to fit inside window size
+// "outside"    sets canvas and stage to dimensions and scales to fit outside window size
+// "full"    sets stage to window size with no scaling
+// "tagID"    add canvas to HTML tag of ID - set to dimensions if provided - no scaling
+
+var scaling = "fit"; // this will resize to fit inside the screen dimensions
+var width = 1440;
+var height = 800;
+var color = white;
+var outerColor = darker;
+
+// we will preload the first two images on page2 and page3
+// then we will lazy load - so not wait for any more images 
+// instead, load them in the background
+var assets = [
+
+
+    
+
+    "packman1.png",
+    "packman2.png",
+    "ghost1.png",
+    "ghost2.png",
+    "ghost3.png",
+    "ghost4.png",
+    "ghostGri.png",
+
+
+    "asagiTus.png",
+    "yukariTus.png",
+    "sagTus.png",
+    "solTus.png",
+
+]
+
+
+var path = "assets/";
+
+
+// as of ZIM 5.5.0 you do not need to put zim before ZIM functions and classes
+
+var stage;
+
+var frame = new Frame({
+    scaling: scaling,
+    width: width,
+    height: height,
+    color: color,
+    outerColor: outerColor,
+    ready: ready,
+    assets: assets,
+    path: path,
+    progress: new Waiter(),
+    gpu:false
+
+});
+
+
+function ready() {
+    zog("ready from ZIM Frame"); // logs in console (F12 - choose console)
+
+    var stage = frame.stage;
+    var stageW = frame.width;
+    var stageH = frame.height;
+    
+
+    Ticker.setFPS(60,60)
+    createjs.Ticker.timingMode=createjs.Ticker.RAF;  
+    createjs.Touch.enable(stage,true);
+
+    var pacDotSound      = document.createElement('audio');
+    pacDotSound.id       = "pacDotSound"
+    pacDotSound.src      = 'assets/eat.mp3'
+
+    var contPacman=new Container()
+    contPacman.x=150
+    contPacman.y=150
+    stage.addChild(contPacman)
+
+
+    var contHayalet=new Container()
+    contHayalet.x=150
+    contHayalet.y=150
+    stage.addChild(contHayalet)
+
+
+
+    document.body.appendChild(pacDotSound);  
+
+
+    class ButonExtend extends Container {
+            
+            constructor() {
+                
+            super();
+
+            this.genislik=200;
+            this.yukseklik=90;
+                
+            this.buton=new Rectangle(this.genislik,this.yukseklik,white,"black",1,10);
+
+
+            this.yazı=new Label("19",40,"Arial","#000"); 
+                
+            this.yaziyiOrtala=function(){
+                
+
+                this.yazı.x=this.genislik/2-this.yazı.width/2
+                this.yazı.y=this.yukseklik/2-this.yazı.height/2;
+
+            }
+                
+            this.yaziyiOrtala()            
+            this.addChild(this.buton,this.yazı)
+
+            }
+            
+            
+        }
+
+
+    class PacmanExtend extends Container {
+        
+        constructor() {
+            
+        super();
+
+            this.pacmanAgizAcik = new asset("packman1.png").clone()
+            this.pacmanAgizKapali = new asset("packman2.png").clone()
+
+            this.pacmanAgizAcik.regX=this.pacmanAgizAcik.width/2
+            this.pacmanAgizAcik.regY=this.pacmanAgizAcik.height/2
+            this.pacmanAgizAcik.height=tileSize
+
+            this.pacmanAgizKapali.regX=this.pacmanAgizKapali.width/2
+            this.pacmanAgizKapali.regY=this.pacmanAgizKapali.height/2
+            this.pacmanAgizKapali.height=tileSize
+            this.pacmanAgizKapali.visible=false
+
+
+            var _this=this
+
+            var setPacmanAnimasyonZaman                    
+        
+            this.pacmanAnimasyonBaslat=function(){
+
+                clearInterval(setPacmanAnimasyonZaman)
+                setPacmanAnimasyonZaman=setInterval(animasyonPacman,200)
+
+            }
+
+            this.pacmanAnimasyonBaslat()
+            
+            function animasyonPacman(){
+
+                                
+                if(_this.pacmanAgizKapali.visible==false){
+
+                    _this.pacmanAgizKapali.visible=true
+                    _this.pacmanAgizAcik.visible=false
+                }else{
+
+                    _this.pacmanAgizKapali.visible=false
+                    _this.pacmanAgizAcik.visible=true
+
+                }
+        
+            }
+
+            this.pacmanAnimasyonDurdur=function(){
+
+                clearInterval(setPacmanAnimasyonZaman)
+                _this.pacmanAgizKapali.visible=false
+                _this.pacmanAgizAcik.visible=true
+
+            }
+            
+            this.addChild(this.pacmanAgizAcik,this.pacmanAgizKapali)
+
+        }
+        
+        
+    }
+
+
+    class GostExtend extends Container {
+        
+        constructor(options={}) {
+            
+        super();
+
+            this.ghostResim=options.ghostResim
+
+            this.ghostNesnesi = new asset(this.ghostResim).clone()
+
+            this.ghostGri = new asset("ghostGri.png").clone()
+
+
+            this.ghostNesnesi.regX=this.ghostNesnesi.width/2
+            this.ghostNesnesi.regY=this.ghostNesnesi.height/2
+            this.ghostNesnesi.height=tileSize
+
+            this.ghostGri.regX=this.ghostGri.width/2
+            this.ghostGri.regY=this.ghostGri.height/2
+            this.ghostGri.height=tileSize
+
+            this.ghostGri.visible=false
+
+            
+            this.addChild(this.ghostNesnesi,this.ghostGri)
+
+        }
+        
+        
+    }
+
+
+    class EkrandaAciklamaExtend extends Container {
+        
+        constructor(options={}) {
+            
+        super();
+
+    
+
+            this.butonArka=new Rectangle(350,300,white,black,1,5)
+
+            this.canResim = new asset("packman1.png").clone()
+            this.canResim.sca(.4)
+            this.canResim.x=10
+            this.canResim.y=10
+
+            
+            this.canSayisiText=new Label(": 3",35,"Arial")
+            this.canSayisiText.x=this.canResim.x+this.canResim.width+5
+            this.canSayisiText.y=this.canResim.y+this.canResim.height/2-this.canSayisiText.height/2
+
+            this.aciklamaText=new Label("Hayalet yakaladı !",35,"Arial")
+            this.aciklamaText.x=10
+            this.aciklamaText.y=90
+
+            this.aciklamaText.labelWidth=300
+
+            
+            this.devamButon=new ButonExtend()
+            this.devamButon.yazı.text="Devam >>"
+            this.devamButon.yaziyiOrtala()
+            
+            this.devamButon.x=this.butonArka.width/2-this.devamButon.width/2
+            this.devamButon.y=this.butonArka.height-this.devamButon.height-15
+            new createjs.ButtonHelper(this.devamButon)
+            
+
+            this.yenidenButon=new ButonExtend()
+            this.yenidenButon.yazı.text="Yeniden"
+            this.yenidenButon.yaziyiOrtala()
+            
+            this.yenidenButon.x=this.butonArka.width/2-this.yenidenButon.width/2
+            this.yenidenButon.y=this.butonArka.height-this.yenidenButon.height-15
+            new createjs.ButtonHelper(this.yenidenButon)
+
+
+            
+            this.addChild(this.butonArka,this.canResim ,this.canSayisiText)
+            this.addChild(this.aciklamaText,this.devamButon,this.yenidenButon)
+
+        }
+        
+        
+    }
+
+
+
+    var oyunAktif=true
+    var seviye=1
+
+    var oyunAciklama=new EkrandaAciklamaExtend()
+    oyunAciklama.x=900
+    oyunAciklama.y=0
+    oyunAciklama.visible=false
+    contPacman.addChild(oyunAciklama)
+
+
+
+    oyunAciklama.devamButon.on("click",function(){
+
+        oyunAktif=true
+        pacman.pacmanAnimasyonBaslat()
+        oyunilkBaslangic=true
+        oyunAciklama.visible=false
+        resetPacman();
+        resetGhosts();
+        
+    })
+
+    oyunAciklama.yenidenButon.on("click",function(){
+
+        oyunAktif=true
+        pacman.pacmanAnimasyonBaslat()
+        oyunilkBaslangic=true
+        oyunAciklama.visible=false
+
+        if(seviye>4){
+
+            seviye=1
+
+        }
+
+        ghosts.splice(0,ghosts.length)
+        contHayalet.removeAllChildren()
+
+        if(seviye==1){
+
+            ghosts.push(new Ghost("ghost1.png", hayaletBaslangicListesi[0],10));
+        }
+
+        
+
+        if(seviye==2){
+
+            ghosts.push(new Ghost("ghost1.png", hayaletBaslangicListesi[0],10));
+            ghosts.push(new Ghost("ghost2.png", hayaletBaslangicListesi[1],5));
+        }
+
+        if(seviye==3){
+
+            ghosts.push(new Ghost("ghost1.png", hayaletBaslangicListesi[0],10));
+            ghosts.push(new Ghost("ghost2.png", hayaletBaslangicListesi[1],5));
+            ghosts.push(new Ghost("ghost3.png", hayaletBaslangicListesi[2],5));
+        }
+
+
+        if(seviye==4){
+
+            ghosts.push(new Ghost("ghost1.png", hayaletBaslangicListesi[0],10));
+            ghosts.push(new Ghost("ghost2.png", hayaletBaslangicListesi[1],5));
+            ghosts.push(new Ghost("ghost3.png", hayaletBaslangicListesi[2],5));
+            ghosts.push(new Ghost("ghost4.png", hayaletBaslangicListesi[3],5));
+            
+        }
+
+        
+        
+        restartGame();
+    })
+
+
+
+    var butonSolTus=new asset("solTus.png")
+    var butonSagTus=new asset("sagTus.png")
+    var butonAsagiTus=new asset("asagiTus.png")
+    var butonYukariTus=new asset("yukariTus.png")
+
+    butonSolTus.x=950
+    butonSolTus.y=500
+
+    butonSagTus.x=1150
+    butonSagTus.y=500
+
+    butonAsagiTus.x=1050
+    butonAsagiTus.y=500
+
+    butonYukariTus.x=1050
+    butonYukariTus.y=400
+
+    new createjs.ButtonHelper(butonSolTus)
+    new createjs.ButtonHelper(butonSagTus)
+    new createjs.ButtonHelper(butonAsagiTus)
+    new createjs.ButtonHelper(butonYukariTus)
+
+    // Dokunmatik yön butonları
+    butonSolTus.addEventListener("mousedown", () => hareketBaslat("left"));
+    butonSagTus.addEventListener("mousedown", () => hareketBaslat("right"));
+    butonYukariTus.addEventListener("mousedown", () => hareketBaslat("up"));
+    butonAsagiTus.addEventListener("mousedown", () => hareketBaslat("down"));
+
+    butonSolTus.addEventListener("pressup", hareketiDurdur);
+    butonSagTus.addEventListener("pressup", hareketiDurdur);
+    butonYukariTus.addEventListener("pressup", hareketiDurdur);
+    butonAsagiTus.addEventListener("pressup", hareketiDurdur);
+
+
+
+    // Global değişkenler
+    let hareketZamanlayici = null; // Sürekli hareket için
+    let surekliHareketEtti = false; // Tek kare hareket edildi mi kontrolü
+    let pacmanHareketHizi=100
+    let hayaletHareketHizi=300
+
+
+
+    // Hareketi başlatma
+    function hareketBaslat(direction) {
+
+        if(oyunAktif){
+
+            
+            surekliHareketEtti=false
+            if(oyunilkBaslangic){
+
+                oyunilkBaslangic=false
+                clearInterval(setZaman)
+                setZaman=setInterval(oyunZaman,hayaletHareketHizi)
+            }
+
+
+
+            // Pac-Man yönünü ayarla
+            pacmanDirection = direction;
+
+            if(direction=="left"){
+
+                pacman.scaleX=-1
+                pacman.rotation = "0";
+            }
+
+            if(direction=="right"){
+
+                pacman.scaleX=1
+                pacman.rotation = "0";
+            }
+
+            if(direction=="down"){
+
+                pacman.scaleX=1
+                pacman.rotation = "90";
+            }
+
+            if(direction=="up"){
+
+                pacman.scaleX=1
+                pacman.rotation = "-90";
+            }
+
+
+            
+
+
+
+            // Sürekli hareket için zamanlayıcı başlat
+            if (!hareketZamanlayici) {
+                hareketZamanlayici = setInterval(() => {
+                    movePacman();
+                    surekliHareketEtti = true; // Tek hareket kaydedildi
+                }, pacmanHareketHizi); // Sürekli hareket hızı
+            }
+
+        }
+
+    }
+
+    // Hareketi durdurma
+    function hareketiDurdur() {
+        // Zamanlayıcıyı durdur
+        if (hareketZamanlayici) {
+            clearInterval(hareketZamanlayici);
+           
+            
+        }
+
+        // Tek kare hareket ettir
+
+        if (!surekliHareketEtti) {
+
+               movePacman();
+                
+        }
+        hareketZamanlayici = null;
+        
+        
+    }
+
+
+
+    contPacman.addChild(butonAsagiTus)
+    contPacman.addChild(butonYukariTus)
+    contPacman.addChild(butonSolTus)
+    contPacman.addChild(butonSagTus)
+
+
+
+
+
+
+    
+    var tileSize = 40; // Her hücrenin boyutu
+    var width = 22; // Gridin genişliği (sütun sayısı)
+    var layout = [
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 
+        1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 
+        1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 
+        1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 
+        1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 
+        1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 
+        1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 
+        1, 0, 1, 1, 1, 0, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 
+        1, 4, 1, 1, 1, 0, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 0, 1, 1, 1, 0, 1, 
+        1, 0, 1, 1, 1, 0, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 
+        1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 
+        1, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 
+        1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 
+        1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 
+        1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 
+    ];
+
+    console.log(layout.indexOf(2))
+
+//     // Tüm haritayı 0 ile doldur
+// var rows = 14;
+// var cols = 22;
+// var layout = [];
+// for (var i = 0; i < rows * cols; i++) {
+//     layout[i] = 0;
+// }
+
+// // "K" harfinin dikey gövdesi (2. satırdan 9. satıra, sütun 5)
+// for (var r = 2; r <= 9; r++) {
+//     layout[r * cols + 5] = 1; 
+// }
+
+// // "K" nin üst kolu (5. satır gövde kesim noktası olarak alındı)
+// layout[(4 * cols) + 6] = 1; // 4. satır, 6. sütun
+// layout[(3 * cols) + 7] = 1; // 3. satır, 7. sütun
+// layout[(2 * cols) + 8] = 1; // 2. satır, 8. sütun
+
+// // "K" nin alt kolu
+// layout[(6 * cols) + 6] = 1; // 6. satır, 6. sütun
+// layout[(7 * cols) + 7] = 1; // 7. satır, 7. sütun
+// layout[(8 * cols) + 8] = 1; // 8. satır, 8. sütun
+// layout[(9 * cols) + 9] = 1; // 9. satır, 9. sütun
+
+// console.log(layout);
+
+
+    const tiles = []; // Hücreleri saklamak için bir dizi
+    let pacman; // Pac-Man nesnesi
+    let pacmanDirection = null; // Varsayılan hareket yönü
+    const ghosts = []; // Hayaletleri saklamak için bir dizi
+
+    // Harita Çizimi
+    function createBoard() {
+        for (let i = 0; i < layout.length; i++) {
+            const x = (i % width) * tileSize;
+            const y = Math.floor(i / width) * tileSize;
+
+            let tile = new Rectangle(tileSize, tileSize, "#000","#000",null);
+            tile.x = x;
+            tile.y = y;
+            tiles.push(tile);
+            contPacman.addChild(tile);
+
+            if (layout[i] === 1) {
+                tile.color = "#7ec681"; // Duvarlar
+                tile.borderColor = "#7ec681"; // Duvarlar
+            } else if (layout[i] === 0) {
+                let pacDot = new Circle(5, "yellow");
+                pacDot.x = x + tileSize / 2;
+                pacDot.y = y + tileSize / 2;
+                contPacman.addChild(pacDot);
+                pacDot.top()
+                tile.pacDot = pacDot;
+            } else if (layout[i] === 3) {
+                let powerPellet = new Circle(18, "pink");
+                powerPellet.x = x + tileSize / 2;
+                powerPellet.y = y + tileSize / 2;
+                contPacman.addChild(powerPellet);
+                tile.powerPellet = powerPellet;
+            } else if (layout[i] === 4) {
+                tile.empty = true;
+            }
+
+            
+        }
+    }
+
+    createBoard();
+
+    // Pac-Man'in başlangıç pozisyonu
+
+
+
+   
+
+
+    let pacmanIndex = layout.indexOf(4);
+    //pacman = new asset("packman1.png").clone()
+    pacman = new PacmanExtend()
+    pacman.x = (pacmanIndex % width) * tileSize + tileSize / 2;
+    pacman.y = Math.floor(pacmanIndex / width) * tileSize + tileSize / 2;
+    contPacman.addChild(pacman);
+
+
+    var oyunilkBaslangic=true
+
+
+
+    // Hareket Fonksiyonu
+    window.addEventListener("keydown", (e) => {
+
+
+
+        if(oyunAktif){
+
+            
+            if(oyunilkBaslangic){
+
+                    oyunilkBaslangic=false
+                    clearInterval(setZaman)
+                    setZaman=setInterval(oyunZaman,hayaletHareketHizi)
+                }
+
+
+                if (e.key === "ArrowUp"){ 
+
+                    pacmanDirection = "up";
+                    pacman.scaleX=1
+                    pacman.rotation=-90
+
+
+                }
+                if (e.key === "ArrowDown"){ 
+
+                    pacmanDirection = "down";
+                    pacman.scaleX=1
+                    pacman.rotation=90
+
+                }
+
+                if (e.key === "ArrowLeft"){
+                    pacmanDirection = "left";
+                    pacman.scaleX=-1
+                    pacman.rotation=0
+                }
+
+                if (e.key === "ArrowRight"){
+
+                    pacmanDirection = "right";
+                    pacman.scaleX=1
+                    pacman.rotation=0
+
+                }
+
+                movePacman()
+        }
+
+
+    });
+
+
+
+
+
+    function movePacman() {
+
+        if (!oyunAktif) return; // Oyun aktif değilse hareket etme
+        
+        let newX = pacman.x;
+        let newY = pacman.y;
+
+        if (pacmanDirection === "up") newY -= tileSize;
+        if (pacmanDirection === "down") newY += tileSize;
+        if (pacmanDirection === "left") newX -= tileSize;
+        if (pacmanDirection === "right") newX += tileSize;
+
+        // Çarpışma Kontrolü
+        const col = Math.floor(newX / (tileSize));
+        const row = Math.floor(newY / (tileSize));
+        const nextTileIndex = row * width + col;
+
+        if (layout[nextTileIndex] !== 1) {          
+
+            pacman.x = newX;
+            pacman.y = newY;
+
+            eatPacDot(nextTileIndex);
+            eatPowerPellet(nextTileIndex);            
+        }
+
+    }
+
+
+    // Yem Yeme Kontrolü
+
+    let totalPellets = layout.filter((tile) => tile === 0 || tile === 3).length;
+
+    function eatPacDot(index) {
+        if (tiles[index].pacDot) {
+            contPacman.removeChild(tiles[index].pacDot);
+            tiles[index].pacDot = null;
+            score += 10;
+            totalPellets--; // Toplam yem sayısını azalt
+            document.getElementById("pacDotSound").pause()
+            document.getElementById("pacDotSound").currentTime=0
+            document.getElementById("pacDotSound").play()
+            checkWin(); // Kazanma durumunu kontrol et
+        }
+    }
+
+    let scaredTimeout; // Tek bir zamanlayıcı değişkeni
+
+    // Güç Noktası Yeme Kontrolü
+    function eatPowerPellet(index) {
+        if (tiles[index].powerPellet) {
+            contPacman.removeChild(tiles[index].powerPellet);
+            tiles[index].powerPellet = null;
+            score += 50;
+            totalPellets--; // Toplam yem sayısını azalt
+
+            // Hayaletleri korkut
+            ghosts.forEach((ghost) => (ghost.isScared = true));
+
+            // Önceki zamanlayıcıyı iptal et
+            if (scaredTimeout) {
+                clearTimeout(scaredTimeout);
+            }
+
+            // Yeni zamanlayıcıyı başlat
+            scaredTimeout = setTimeout(() => {
+                ghosts.forEach((ghost) => (ghost.isScared = false));
+            }, 5000); // 5 saniye boyunca korkma durumu
+
+            checkWin(); // Kazanma durumunu kontrol et
+        }
+    }
+
+
+    function checkWin() {
+        if (totalPellets === 0) {
+            //alert("Tebrikler, tüm yemleri yediniz! Oyunu kazandınız!");
+            oyunAciklama.visible=true
+            oyunAciklama.devamButon.visible=false
+            oyunAciklama.yenidenButon.visible=true
+            oyunAciklama.aciklamaText.text="Tebrikler, tüm yemleri yediniz! Oyunu kazandınız!"
+            oyunAktif=false
+            pacman.pacmanAnimasyonDurdur()
+            seviye++
+
+            clearInterval(setZaman);
+            
+        }
+    }
+
+function restartGame() {
+    // Global değişkenleri sıfırla
+    score = 0;
+    lives = 3; // Canları sıfırla
+    pacmanDirection = null;
+    totalPellets = layout.filter((tile) => tile === 0 || tile === 3).length;
+
+    // Pac-Man'i sıfırla
+    oyunAciklama.canSayisiText.text=": "+lives+""
+    
+    resetPacman();
+
+
+
+    // Tüm yemleri ve güç noktalarını yeniden oluştur
+    tiles.forEach((tile, i) => {
+        if (tile.pacDot) {
+            contPacman.removeChild(tile.pacDot);
+            tile.pacDot = null;
+        }
+        if (tile.powerPellet) {
+            contPacman.removeChild(tile.powerPellet);
+            tile.powerPellet = null;
+        }
+
+        if (layout[i] === 0) {
+            let pacDot = new Circle(5, "yellow");
+            pacDot.x = tile.x + tileSize / 2;
+            pacDot.y = tile.y + tileSize / 2;
+            contPacman.addChild(pacDot);
+            tile.pacDot = pacDot;
+        } else if (layout[i] === 3) {
+            let powerPellet = new Circle(18, "pink");
+            powerPellet.x = tile.x + tileSize / 2;
+            powerPellet.y = tile.y + tileSize / 2;
+            contPacman.addChild(powerPellet);
+            tile.powerPellet = powerPellet;
+        }
+    });
+
+        // Hayaletleri sıfırla
+        ghosts.forEach((ghost, index) => {
+            const startIndex = hayaletBaslangicListesi[index]; // Hayalet başlangıç indeksleri
+            ghost.index = startIndex;
+
+
+            ghost.hayalet.x = (startIndex % width) * tileSize + tileSize / 2;
+            ghost.hayalet.y = Math.floor(startIndex / width) * tileSize + tileSize / 2;
+
+            
+
+            ghost.isScared = false;
+            ghost.isActive = true; // Tüm hayaletleri aktif yap
+            ghost.hayalet.ghostNesnesi.visible =true;
+            ghost.hayalet.ghostGri.visible =false;
+            ghost.hayalet.top()
+
+            // Eğer hayalet sahneden kaldırılmışsa yeniden ekle
+            if (!contHayalet.children.includes(ghost.hayalet)) {
+                contHayalet.addChild(ghost.hayalet);
+            }
+        });
+
+        oyunZaman()
+
+    // Zamanlama sıfırla
+    msPrev = window.performance.now();
+    clearInterval(setZaman);
+    setZaman = setInterval(oyunZaman, hayaletHareketHizi);
+}
+
+
+
+    let lives = 3; // Oyuncunun başlangıçtaki can sayısı
+    let score=0
+
+    function resetPacman() {
+        pacmanIndex = layout.indexOf(4);
+        pacman.x = (pacmanIndex % width) * tileSize + tileSize / 2;
+        pacman.y = Math.floor(pacmanIndex / width) * tileSize + tileSize / 2;
+        pacmanDirection = null; // Hareketi durdur
+    }
+
+    function resetGhosts() {
+        ghosts.forEach((ghost) => {
+            ghost.respawn(); // Hayaletleri başlangıç pozisyonlarına döndür
+        });
+    }
+
+
+
+
+    const gameStartTime = Date.now(); // Oyun başladığında zamanı kaydet
+    const gameDuration = 120000; // Oyun süresi: 2 dakika (120000 ms)
+
+    // Hayalet Sınıfı
+    class Ghost {
+        constructor(resim, startIndex) {
+
+
+            this.hayalet = new GostExtend({
+
+                ghostResim:resim
+            }); 
+            
+
+            this.startIndex = startIndex; // Başlangıç pozisyonu
+            this.index = startIndex; // Mevcut pozisyon
+            this.isScared = false; // Korkmuş durumu
+            this.lastDirection = null; // Son hareket yönü
+
+
+            // Başlangıç pozisyonu koordinatları
+            const x = (startIndex % width) * tileSize + tileSize / 2;
+            const y = Math.floor(startIndex / width) * tileSize + tileSize / 2;
+            this.hayalet.x = x;
+            this.hayalet.y = y;
+
+            contHayalet.addChild(this.hayalet);
+        }
+
+        move() {
+            const directions = [-1, 1, -width, width]; // Sola, sağa, yukarı, aşağı
+            let validDirections = [];
+
+            // Geçerli yönleri bul
+            directions.forEach((direction) => {
+                const newIndex = this.index + direction;
+                if (
+                    layout[newIndex] !== 1 && // Duvar değilse
+                    layout[newIndex] !== undefined && // Harita sınırlarını aşmıyorsa
+                    (!this.lastDirection || this.lastDirection !== -direction) // Ters yöne gitmiyorsa
+                ) {
+                    validDirections.push(direction);
+                }
+            });
+
+            // Eğer geçerli yön yoksa yeniden doğsun
+            if (validDirections.length === 0) {
+                this.respawn();
+                return;
+            }
+
+            let direction;
+
+            // Pac-Man'e yönelme veya rastgele hareket
+            if (this.isScared || Math.random() > 0.7) {
+                // Rastgele hareket
+                direction = validDirections[Math.floor(Math.random() * validDirections.length)];
+            } else {
+                // Pac-Man'e yaklaş
+                const pacmanRow = Math.floor(pacman.y / tileSize);
+                const pacmanCol = Math.floor(pacman.x / tileSize);
+                const ghostRow = Math.floor(this.index / width);
+                const ghostCol = this.index % width;
+
+                direction = validDirections.sort((a, b) => {
+                    const newRowA = Math.floor((this.index + a) / width);
+                    const newColA = (this.index + a) % width;
+                    const distA = Math.abs(pacmanRow - newRowA) + Math.abs(pacmanCol - newColA);
+
+                    const newRowB = Math.floor((this.index + b) / width);
+                    const newColB = (this.index + b) % width;
+                    const distB = Math.abs(pacmanRow - newRowB) + Math.abs(pacmanCol - newColB);
+
+                    return distA - distB;
+                })[0];
+            }
+
+            if (direction !== undefined) {
+                this.lastDirection = direction; // Son hareket yönünü güncelle
+                this.index += direction;
+                this.hayalet.x = (this.index % width) * tileSize + tileSize / 2;
+                this.hayalet.y = Math.floor(this.index / width) * tileSize + tileSize / 2;
+            }
+
+            // Hayaletin rengini değiştir
+
+            if(this.isScared){
+
+                this.hayalet.ghostNesnesi.visible=false;
+                this.hayalet.ghostGri.visible=true
+
+            }else{
+
+                this.hayalet.ghostNesnesi.visible=true;
+                this.hayalet.ghostGri.visible=false
+
+            }
+
+              
+        }
+
+        respawn() {
+            // Hayaleti başlangıç pozisyonuna döndür
+            this.index = this.startIndex;
+            this.hayalet.x = (this.startIndex % width) * tileSize + tileSize / 2;
+            this.hayalet.y = Math.floor(this.startIndex / width) * tileSize + tileSize / 2;
+            this.isScared = false; // Korkmuş durumu sıfırla
+            this.lastDirection = null; // Son hareket yönünü sıfırla
+        }
+    }
+
+        // Hayaletleri Başlat
+        var hayaletBaslangicListesi=[185,186,187,188]
+
+
+
+        //// seviyeye göre ayarlandığı için
+
+        ghosts.push(new Ghost("ghost1.png", hayaletBaslangicListesi[0],10));
+        //ghosts.push(new Ghost("ghost2.png", hayaletBaslangicListesi[1],5));
+        //ghosts.push(new Ghost("ghost3.png", hayaletBaslangicListesi[2],5));
+        //ghosts.push(new Ghost("ghost4.png", hayaletBaslangicListesi[3],5));
+
+
+    function checkCollision() {
+        ghosts.forEach((ghost) => {
+            const pacmanRow = Math.floor(pacman.y / tileSize);
+            const pacmanCol = Math.floor(pacman.x / tileSize);
+            const ghostRow = Math.floor(ghost.index / width);
+            const ghostCol = ghost.index % width;
+
+            if (pacmanRow === ghostRow && pacmanCol === ghostCol) {
+                if (ghost.isScared) {
+                    // Hayalet yakalanır
+                    ghost.respawn();
+                    score += 100;
+                } else {
+                    // Pac-Man yakalanır
+                    lives--;
+                    if (lives > 0) {
+                        //alert(`Hayalet tarafından yakalandınız! Kalan can: ${lives}`);
+                        oyunAktif=false     
+                        pacman.pacmanAnimasyonDurdur()
+                        oyunAciklama.aciklamaText.text="Hayalet yakaladı!!!"
+                        oyunAciklama.canSayisiText.text=": "+lives+""
+                        oyunAciklama.visible=true
+                        oyunAciklama.devamButon.visible=true
+                        oyunAciklama.yenidenButon.visible=false
+                        clearInterval(setZaman);
+
+                    } else {
+                        //alert("Tüm canlarınızı kaybettiniz! Oyun sona erdi!");
+                        oyunAktif=false
+                        pacman.pacmanAnimasyonDurdur()
+                        oyunAciklama.aciklamaText.text="Tüm canlarınızı kaybettiniz! Oyun sona erdi!"
+                        oyunAciklama.canSayisiText.text=": "+lives+""
+                        oyunAciklama.visible=true
+                        oyunAciklama.devamButon.visible=false
+                        oyunAciklama.yenidenButon.visible=true
+                        clearInterval(setZaman);
+                        
+                    }
+                }
+            }
+        });
+    }
+
+
+
+    var setZaman;
+
+    
+
+    function oyunZaman(){
+
+        
+        ghosts.forEach((ghost) => ghost.move());        
+        checkCollision();
+
+    }
+
+
+
+
+    stage.update(); // this is needed to show any changes
+
+}; // end of ready
+
+    
+
+    </script>
+
+</head>
+<body>
+    
+
+    
+</body>
+</html>
